@@ -43,3 +43,7 @@ Frontend URL: `http://127.0.0.1:5173`
 - `phone` (optional)
 - `course` (required)
 - `year_level` (required, 1-5)
+
+## Author
+
+**sokhenghun** · [vindal554@gmail.com](mailto:vindal554@gmail.com)

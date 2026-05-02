@@ -1,7 +1,8 @@
 {
-  "name": "frontend-react",
+  "name": "sokhenghun-student-crud-frontend",
   "private": true,
   "version": "0.0.0",
+  "author": "sokhenghun <vindal554@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,5 +1,7 @@
 # Laravel CRUD with React Frontend
 
+**Repository:** [github.com/sokhenghun/CRUD_System_Studends-API](https://github.com/sokhenghun/CRUD_System_Studends-API)
+
 This project is fully scaffolded in two parts:
 
 - `backend-laravel`: Laravel API for Student CRUD

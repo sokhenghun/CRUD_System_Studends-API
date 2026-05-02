@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import RetroErrorWindow from './RetroErrorWindow.jsx'
 import './App.css'
@@ -183,7 +183,6 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [studentsPage, setStudentsPage] = useState(1)
   const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [editingId, setEditingId] = useState(null)
   const [deleteState, setDeleteState] = useState({
@@ -215,15 +214,13 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
+  const displayErrors = useMemo(() => {
     const fieldErrors = validateForm(form)
-    setErrors(() => {
-      const next = {}
-      for (const key of Object.keys(touched)) {
-        if (touched[key]) next[key] = fieldErrors[key]
-      }
-      return next
-    })
+    const next = {}
+    for (const key of Object.keys(touched)) {
+      if (touched[key]) next[key] = fieldErrors[key]
+    }
+    return next
   }, [form, touched])
 
   const showAlert = (type, message) => {
@@ -258,7 +255,10 @@ function App() {
       VITE_API_URL: import.meta.env.VITE_API_URL,
       baseURL: api.defaults.baseURL,
     })
-    fetchStudents()
+    queueMicrotask(() => {
+      void fetchStudents()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load list once on mount; mutations call fetchStudents explicitly
   }, [])
 
   const onChange = (event) => {
@@ -273,7 +273,6 @@ function App() {
 
   const resetForm = () => {
     setForm(emptyForm)
-    setErrors({})
     setTouched({})
     setEditingId(null)
   }
@@ -289,7 +288,6 @@ function App() {
         course: true,
         year_level: true,
       })
-      setErrors(validationErrors)
       showAlert('error', 'Please correct the highlighted fields.')
       return
     }
@@ -310,6 +308,7 @@ function App() {
         log('POST /students — response', res.status, res.data)
         showAlert('success', 'Student created successfully.')
         setSearchTerm('')
+        setStudentsPage(1)
       }
       resetForm()
       await fetchStudents()
@@ -338,7 +337,6 @@ function App() {
       year_level: String(student.year_level),
     })
     setTouched({})
-    setErrors({})
     window.setTimeout(() => {
       document.getElementById('add-student')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 0)
@@ -453,14 +451,6 @@ function App() {
   const studentsPageOffset = (studentsPageClamped - 1) * STUDENTS_PAGE_SIZE
   const paginatedStudents = filteredStudents.slice(studentsPageOffset, studentsPageOffset + STUDENTS_PAGE_SIZE)
 
-  useEffect(() => {
-    setStudentsPage(1)
-  }, [searchTerm])
-
-  useEffect(() => {
-    setStudentsPage((p) => Math.min(p, studentsTotalPages))
-  }, [studentsTotalPages])
-
   const showStudentsPagination = !loading && filteredStudents.length > STUDENTS_PAGE_SIZE
 
   return (
@@ -472,30 +462,30 @@ function App() {
       <form id="add-student" className="form-card" onSubmit={onSubmit}>
         <h2>{editingId ? 'Update Student' : 'Add New Student'}</h2>
         <div className="grid">
-          <div className={`field ${errors.name ? 'field-has-error' : ''}`}>
+          <div className={`field ${displayErrors.name ? 'field-has-error' : ''}`}>
             <input name="name" placeholder="Full Name" value={form.name} onChange={onChange} onBlur={onBlur} required />
-            {errors.name && <small className="field-error">{errors.name}</small>}
+            {displayErrors.name && <small className="field-error">{displayErrors.name}</small>}
           </div>
-          <div className={`field ${errors.email ? 'field-has-error' : ''}`}>
+          <div className={`field ${displayErrors.email ? 'field-has-error' : ''}`}>
             <input name="email" type="email" placeholder="Email" value={form.email} onChange={onChange} onBlur={onBlur} required />
-            {errors.email && <small className="field-error">{errors.email}</small>}
+            {displayErrors.email && <small className="field-error">{displayErrors.email}</small>}
           </div>
-          <div className={`field ${errors.phone ? 'field-has-error' : ''}`}>
+          <div className={`field ${displayErrors.phone ? 'field-has-error' : ''}`}>
             <input name="phone" placeholder="Phone" value={form.phone} onChange={onChange} onBlur={onBlur} required />
-            {errors.phone && <small className="field-error">{errors.phone}</small>}
+            {displayErrors.phone && <small className="field-error">{displayErrors.phone}</small>}
           </div>
-          <div className={`field ${errors.course ? 'field-has-error' : ''}`}>
+          <div className={`field ${displayErrors.course ? 'field-has-error' : ''}`}>
             <input name="course" placeholder="Course" value={form.course} onChange={onChange} onBlur={onBlur} required />
-            {errors.course && <small className="field-error">{errors.course}</small>}
+            {displayErrors.course && <small className="field-error">{displayErrors.course}</small>}
           </div>
-          <div className={`field ${errors.year_level ? 'field-has-error' : ''}`}>
+          <div className={`field ${displayErrors.year_level ? 'field-has-error' : ''}`}>
             <select name="year_level" value={form.year_level} onChange={onChange} onBlur={onBlur}>
               <option value="1">Year 1</option>
               <option value="2">Year 2</option>
               <option value="3">Year 3</option>
               <option value="4">Year 4</option>
             </select>
-            {errors.year_level && <small className="field-error">{errors.year_level}</small>}
+            {displayErrors.year_level && <small className="field-error">{displayErrors.year_level}</small>}
           </div>
         </div>
         <div className="actions">
@@ -579,14 +569,20 @@ function App() {
               className="search-input"
               placeholder="Search anything..."
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value)
+                setStudentsPage(1)
+              }}
             />
             <button
               type="button"
               className="search-filter-btn"
               aria-label="Clear search"
               title="Clear search"
-              onClick={() => setSearchTerm('')}
+              onClick={() => {
+                setSearchTerm('')
+                setStudentsPage(1)
+              }}
             >
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M4 6H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -636,7 +632,14 @@ function App() {
                             warnOutline
                             line2Variant="gradient"
                             cta={
-                              <button type="button" className="nf-window-cta" onClick={() => setSearchTerm('')}>
+                              <button
+                                type="button"
+                                className="nf-window-cta"
+                                onClick={() => {
+                                  setSearchTerm('')
+                                  setStudentsPage(1)
+                                }}
+                              >
                                 Back to Student Management
                               </button>
                             }
@@ -683,7 +686,7 @@ function App() {
                   type="button"
                   className="table-pagination-nav"
                   disabled={studentsPageClamped <= 1}
-                  onClick={() => setStudentsPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setStudentsPage(Math.max(1, studentsPageClamped - 1))}
                 >
                   Previous
                 </button>
@@ -705,7 +708,7 @@ function App() {
                   type="button"
                   className="table-pagination-nav"
                   disabled={studentsPageClamped >= studentsTotalPages}
-                  onClick={() => setStudentsPage((p) => Math.min(studentsTotalPages, p + 1))}
+                  onClick={() => setStudentsPage(Math.min(studentsTotalPages, studentsPageClamped + 1))}
                 >
                   Next
                 </button>

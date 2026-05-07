@@ -244,7 +244,18 @@ function App() {
         status: err.response?.status,
         data: err.response?.data,
       })
-      showAlert('error', 'Failed to load students. Make sure Laravel API is running.')
+      const status = err.response?.status
+      const base = api.defaults.baseURL ?? ''
+      let msg = 'Failed to load students.'
+      if (status) {
+        msg += ` The API responded with HTTP ${status}.`
+        if (status >= 500) {
+          msg += ' Check Laravel logs; on a new database run: php artisan migrate --force'
+        }
+      } else {
+        msg += ` No response from ${base}. Start Laravel (php artisan serve in backend-laravel) or set VITE_API_URL in frontend-react/.env.`
+      }
+      showAlert('error', msg)
     } finally {
       setLoading(false)
     }
